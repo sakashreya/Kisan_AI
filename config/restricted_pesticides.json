@@ -1,0 +1,116 @@
+{
+  "restricted": [
+    "endosulfan",
+    "monocrotophos",
+    "phorate",
+    "carbofuran",
+    "methyl parathion",
+    "phosphamidon",
+    "dichlorvos",
+    "diazinon",
+    "aldicarb",
+    "chlordane",
+    "heptachlor",
+    "lindane",
+    "paraquat dichloride",
+    "methomyl",
+    "triazophos"
+  ],
+  "approved_by_crop": {
+    "rice": [
+      "tricyclazole",
+      "carbendazim",
+      "edifenphos",
+      "validamycin",
+      "kasugamycin",
+      "azoxystrobin",
+      "difenoconazole",
+      "cartap hydrochloride",
+      "chlorantraniliprole",
+      "flubendiamide",
+      "thiamethoxam",
+      "fipronil",
+      "buprofezin",
+      "chlorpyriphos",
+      "chlorpyrifos",
+      "imidacloprid",
+      "neem oil",
+      "pseudomonas fluorescens",
+      "trichoderma viride"
+    ],
+    "cotton": [
+      "imidacloprid",
+      "spinosad",
+      "emamectin benzoate",
+      "indoxacarb",
+      "novaluron",
+      "chlorantraniliprole",
+      "flonicamid",
+      "diafenthiuron",
+      "buprofezin",
+      "profenofos",
+      "profenophos",
+      "chlorpyriphos",
+      "chlorpyrifos",
+      "copper oxychloride",
+      "streptocycline",
+      "trichoderma viride"
+    ],
+    "tomato": [
+      "mancozeb",
+      "copper oxychloride",
+      "metalaxyl",
+      "chlorothalonil",
+      "imidacloprid",
+      "spinosad",
+      "chlorantraniliprole",
+      "novaluron",
+      "cyantraniliprole",
+      "neem oil",
+      "trichoderma viride",
+      "pseudomonas fluorescens"
+    ],
+    "chilli": [
+      "copper oxychloride",
+      "mancozeb",
+      "wettable sulphur",
+      "difenoconazole",
+      "imidacloprid",
+      "spinosad",
+      "fipronil",
+      "diafenthiuron",
+      "neem oil"
+    ],
+    "groundnut": [
+      "mancozeb",
+      "carbendazim",
+      "hexaconazole",
+      "chlorothalonil",
+      "tebuconazole",
+      "chlorpyriphos",
+      "chlorpyrifos",
+      "quinalphos",
+      "trichoderma viride"
+    ],
+    "sugarcane": [
+      "chlorpyriphos",
+      "chlorpyrifos",
+      "fipronil",
+      "chlorantraniliprole",
+      "carbendazim"
+    ],
+    "banana": [
+      "carbendazim",
+      "propiconazole",
+      "copper oxychloride",
+      "pseudomonas fluorescens"
+    ],
+    "mango": [
+      "wettable sulphur",
+      "carbendazim",
+      "hexaconazole",
+      "dimethoate",
+      "imidacloprid"
+    ]
+  }
+}

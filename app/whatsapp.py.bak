@@ -1,0 +1,42 @@
+import hashlib
+import hmac
+import requests
+from .config import WHATSAPP_TOKEN, PHONE_NUMBER_ID, APP_SECRET
+
+GRAPH = "https://graph.facebook.com/v21.0"
+HEADERS = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
+
+
+def verify_signature(body: bytes, header: str) -> bool:
+    """Check X-Hub-Signature-256. Skipped when APP_SECRET is not set (dev only)."""
+    if not APP_SECRET:
+        return True
+    expected = "sha256=" + hmac.new(APP_SECRET.encode(), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, header or "")
+
+
+def send_text(to: str, text: str):
+    r = requests.post(
+        f"{GRAPH}/{PHONE_NUMBER_ID}/messages",
+        headers=HEADERS,
+        json={
+            "messaging_product": "whatsapp",
+            "to": to,
+            "type": "text",
+            "text": {"body": text[:4000]},
+        },
+        timeout=30,
+    )
+    if not r.ok:
+        print("WhatsApp send error:", r.status_code, r.text)
+    return r.ok
+
+
+def download_media(media_id: str):
+    """Returns (bytes, mime_type) for a media id received in a webhook."""
+    meta = requests.get(f"{GRAPH}/{media_id}", headers=HEADERS, timeout=30)
+    meta.raise_for_status()
+    info = meta.json()
+    data = requests.get(info["url"], headers=HEADERS, timeout=60)
+    data.raise_for_status()
+    return data.content, info.get("mime_type", "")

@@ -1,0 +1,57 @@
+import traceback
+from celery import Celery
+from .config import REDIS_URL
+from .db import get_farmer, update_farmer
+from .whatsapp import send_text, download_media
+from .storage import save_audio, save_temp
+from .pipeline import run_pipeline, script_lang, LANGS
+
+celery = Celery("kisan", broker=REDIS_URL, backend=REDIS_URL)
+
+FALLBACK = "Sorry, I could not process that. Please try again."
+
+
+@celery.task(name="process_message")
+def process_message(msg: dict):
+    phone, mtype = msg["from"], msg["type"]
+    try:
+        farmer = get_farmer(phone)
+        text, in_lang, image_info = "", "en", ""
+
+        if mtype == "text":
+            text = msg["text"]["body"]
+            in_lang = script_lang(text, farmer.language)
+
+        elif mtype == "audio":
+            from .speech import transcribe
+            data, _ = download_media(msg["audio"]["id"])
+            path = save_audio(data, phone)
+            text, lang = transcribe(path, farmer.language if farmer.language in LANGS else None)
+            in_lang = lang if lang in LANGS else "hi"
+            if not text:
+                send_text(phone, "I could not hear anything. Please send the voice note again.")
+                return
+
+        elif mtype == "image":
+            from .vision import describe_image
+            data, mime = download_media(msg["image"]["id"])
+            path = save_temp(data, ".jpg")
+            caption = msg["image"].get("caption", "")
+            image_info = describe_image(path, caption)
+            text = caption or "What is wrong with my crop? Identify the problem and suggest treatment."
+            in_lang = script_lang(caption, farmer.language) if caption else "en"
+
+        elif mtype == "location":
+            loc = msg["location"]
+            update_farmer(phone, lat=loc["latitude"], lon=loc["longitude"])
+            send_text(phone, "Location saved. Now ask your farming question.")
+            return
+
+        else:
+            send_text(phone, "Please send a text, voice note, or crop photo.")
+            return
+
+        send_text(phone, run_pipeline(phone, text, in_lang, image_info))
+    except Exception:
+        traceback.print_exc()
+        send_text(phone, FALLBACK)

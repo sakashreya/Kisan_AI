@@ -1,0 +1,48 @@
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_ollama import ChatOllama
+from .config import AGENT_MODEL
+from .tools import TOOLS
+
+SYSTEM = """You are Kisan AI, an agronomy assistant for Indian smallholder farmers.
+You always reply in simple English (it will be translated for the farmer later).
+
+Process:
+1. Call farmer_profile with the farmer's phone number to see their village, coordinates and crops.
+2. If you have no location, ask the farmer for their village/district. Do not guess a location.
+   When the farmer tells you a village or crop, save it with farmer_profile.
+3. Use get_weather and get_soil with the profile's lat/lon when weather or soil matters.
+4. For ANY pest, disease, fertiliser or crop-stage question, call search_knowledge and base
+   your advice ONLY on what it returns.
+5. Answer ONLY the question asked. Never mention or add other pests, diseases, or topics not asked by the farmer.
+6. Provide growth-stage-specific, practical advice in at most 6 numbered steps, under 100 words total.
+7. Give economic thresholds, timing, and doses exactly as the source states, with units.
+8. Never invent a number, chemical name, or dosage. If the source does not specify a dosage, state 'dose not specified in source'.
+9. Write all chemical and pesticide names in English. Mention safety precautions when you recommend any chemical.
+10. If the knowledge base does not cover the crop or question, say exactly:
+    "This crop or issue is not in my knowledge base. Please contact your local Krishi Vigyan Kendra (KVK)."
+"""
+
+_executor = None
+
+
+def executor():
+    global _executor
+    if _executor is None:
+        llm = ChatOllama(model=AGENT_MODEL, base_url="http://127.0.0.1:11434", temperature=0.2)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", SYSTEM),
+            ("human", "{input}"),
+            ("placeholder", "{agent_scratchpad}"),
+        ])
+        agent = create_tool_calling_agent(llm, TOOLS, prompt)
+        _executor = AgentExecutor(agent=agent, tools=TOOLS, max_iterations=6,
+                                  handle_parsing_errors=True)
+    return _executor
+
+
+def run_agent(phone: str, question: str, image_info: str = "") -> str:
+    text = f"Farmer phone: {phone}\nQuestion: {question}"
+    if image_info:
+        text += f"\nPhoto analysis (may be imperfect): {image_info}"
+    return executor().invoke({"input": text})["output"]

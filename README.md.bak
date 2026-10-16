@@ -1,0 +1,20 @@
+# Kisan AI
+
+WhatsApp -> FastAPI webhook -> Celery worker -> (Whisper | LLaVA) -> IndicTrans2 -> LangChain agent
+(weather, soil, RAG, profile) -> IndicTrans2 -> WhatsApp reply.
+
+## Setup
+1. Install: Docker Desktop, Python 3.11+, Ollama (https://ollama.com).
+2. `python -m venv .venv && source .venv/bin/activate` (Windows: `.venv\Scripts\activate`)
+3. `pip install -r requirements.txt`
+4. `ollama pull qwen2.5:7b` and `ollama pull llava:7b`
+5. `cp .env.example .env` and fill in OPENWEATHER_API_KEY (and the WhatsApp values later).
+6. `docker compose up -d`   (Postgres, Redis, MinIO)
+7. Put ICAR / crop guide PDFs in `data/pdfs/`, then `python scripts/ingest.py`
+8. Test the brain: `python scripts/chat_cli.py en`  then `hi`, `ta`, ...
+9. Run the API: `uvicorn app.main:app --reload --port 8000`
+10. Run the worker (second terminal): `celery -A app.tasks.celery worker --concurrency=1 -l info`
+    (on Windows/macOS add `-P solo`)
+11. WhatsApp: expose with `ngrok http 8000`; in Meta dashboard set callback URL
+    `https://<ngrok>/webhook`, verify token = VERIFY_TOKEN, subscribe to "messages".
+    Add your phone as a test recipient and message the test number.

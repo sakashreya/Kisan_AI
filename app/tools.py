@@ -1,0 +1,93 @@
+import requests
+from langchain_core.tools import tool
+from .config import OPENWEATHER_API_KEY
+from .db import get_farmer, update_farmer
+from . import rag
+
+
+def geocode(place: str):
+    r = requests.get(
+        "http://api.openweathermap.org/geo/1.0/direct",
+        params={"q": f"{place},IN", "limit": 1, "appid": OPENWEATHER_API_KEY},
+        timeout=15,
+    )
+    data = r.json() if r.ok else []
+    return (data[0]["lat"], data[0]["lon"]) if data else None
+
+
+@tool
+def get_weather(lat: float, lon: float) -> str:
+    """Get current weather and the next 24h forecast (temperature, humidity, rain) for a location."""
+    try:
+        r = requests.get(
+            "https://api.openweathermap.org/data/2.5/forecast",
+            params={"lat": lat, "lon": lon, "appid": OPENWEATHER_API_KEY, "units": "metric", "cnt": 8},
+            timeout=15,
+        )
+        r.raise_for_status()
+        items = r.json()["list"]
+        temps = [i["main"]["temp"] for i in items]
+        hum = sum(i["main"]["humidity"] for i in items) / len(items)
+        rain = sum(i.get("rain", {}).get("3h", 0) for i in items)
+        desc = items[0]["weather"][0]["description"]
+        return (f"Next 24h: {desc}. Temp {min(temps):.0f}-{max(temps):.0f} C, "
+                f"avg humidity {hum:.0f}%, expected rain {rain:.1f} mm.")
+    except Exception as e:
+        return f"Weather lookup failed: {e}"
+
+
+@tool
+def get_soil(lat: float, lon: float) -> str:
+    """Get topsoil properties (pH, clay %, sand %) for a location from SoilGrids."""
+    try:
+        r = requests.get(
+            "https://rest.isric.org/soilgrids/v2.0/properties/query",
+            params=[("lon", lon), ("lat", lat), ("property", "phh2o"), ("property", "clay"),
+                    ("property", "sand"), ("depth", "0-5cm"), ("value", "mean")],
+            timeout=30,
+        )
+        r.raise_for_status()
+        out = []
+        for layer in r.json()["properties"]["layers"]:
+            val = layer["depths"][0]["values"]["mean"]
+            factor = layer["unit_measure"].get("d_factor", 1) or 1
+            if val is None:
+                continue
+            val = val / factor
+            out.append(f"{layer['name']}={val:.1f}")
+        if not out:
+            return "Topsoil data not available for this location."
+        return "Topsoil (0-5cm): " + ", ".join(out) + " (clay/sand in %)"
+    except Exception as e:
+        return f"Soil lookup failed: {e}"
+
+
+@tool
+def search_knowledge(query: str, crop: str = "") -> str:
+    """Search the ICAR/agri-university knowledge base (crop guides, pest, disease and fertiliser manuals).
+    Use an English query. Pass the crop name (e.g. 'rice', 'cotton') when known to get crop-specific results."""
+    return rag.search(query, crop or None)
+
+
+@tool
+def farmer_profile(phone: str, village: str = "", crop: str = "") -> str:
+    """Read the farmer's profile. Optionally save a village (location gets geocoded) and/or a crop they grow."""
+    f = get_farmer(phone)
+    changes = {}
+    if village:
+        changes["village"] = village
+        loc = geocode(village)
+        if loc:
+            changes["lat"], changes["lon"] = loc
+    if crop:
+        crops = list(f.crops or [])
+        if crop.lower() not in [c.lower() for c in crops]:
+            crops.append(crop)
+        changes["crops"] = crops
+    if changes:
+        f = update_farmer(phone, **changes)
+    return (f"village={f.village}, lat={f.lat}, lon={f.lon}, language={f.language}, "
+            f"crops={f.crops}, soil_test={f.soil_test}")
+
+
+TOOLS = [get_weather, get_soil, search_knowledge, farmer_profile]

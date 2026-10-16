@@ -1,0 +1,18 @@
+import ollama
+from .config import VISION_MODEL
+
+PROMPT = (
+    "You are an agricultural expert. Look at this crop photo. In 3-4 short sentences say: "
+    "which crop it is (if clear), the visible symptoms, and the most likely pest or disease. "
+    "If you are not sure, say so."
+)
+
+
+def describe_image(path: str, caption: str = "") -> str:
+    prompt = PROMPT + (f" Farmer's note: {caption}" if caption else "")
+    client = ollama.Client(host="http://127.0.0.1:11434")
+    resp = client.chat(
+        model=VISION_MODEL,
+        messages=[{"role": "user", "content": prompt, "images": [path]}],
+    )
+    return resp["message"]["content"].strip()

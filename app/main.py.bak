@@ -1,0 +1,40 @@
+import json
+from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi.responses import PlainTextResponse
+from .config import VERIFY_TOKEN
+from .db import init_db
+from .tasks import process_message
+from .whatsapp import verify_signature
+
+app = FastAPI(title="Kisan AI")
+
+
+@app.on_event("startup")
+def startup():
+    init_db()
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/webhook")
+def verify(request: Request):
+    q = request.query_params
+    if q.get("hub.mode") == "subscribe" and q.get("hub.verify_token") == VERIFY_TOKEN:
+        return PlainTextResponse(q.get("hub.challenge", ""))
+    raise HTTPException(status_code=403, detail="Verification failed")
+
+
+@app.post("/webhook")
+async def receive(request: Request):
+    body = await request.body()
+    if not verify_signature(body, request.headers.get("X-Hub-Signature-256", "")):
+        raise HTTPException(status_code=403, detail="Bad signature")
+    payload = json.loads(body)
+    for entry in payload.get("entry", []):
+        for change in entry.get("changes", []):
+            for msg in change.get("value", {}).get("messages", []):
+                process_message.delay(msg)   # reply is sent from the worker
+    return Response(status_code=200)         # must return fast or Meta retries

@@ -1,0 +1,22 @@
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets
+.env
+.env.*
+
+# Downloaded model weights
+*.safetensors
+*.gguf
+*.onnx
+
+# Local data and generated files
+data/raw/
+data/processed/
+
+# Logs
+*.log
